@@ -287,13 +287,13 @@ CODEPATCH_HOOKCONDITIONALCREATE(0x8002cc80,
     0x8002cddc
 )
 
-// Replaces the bl CityTrial_CheckLegendaryMachineUnlocked inside
-// CityMachineSpawn_PickFreeRunKind (0x801de41c), Free Run's "place one of every
-// machine" picker. Vanilla asks the checklist there, which AP never writes, so an
-// owned Hydra or Dragoon would never appear on that screen however the mask reads.
-// Only kinds 4 and 8 reach this call; every other kind is taken unconditionally,
-// which is Free Run's own sandbox rule and is left alone.
-int GateMachines_CheckFreeRunLegendaryUnlocked(MachineKind kind)
+// Answers the per-kind candidate test inside CityMachineSpawn_PickFreeRunKind
+// (0x801de41c), Free Run's "place one of every machine" picker. Vanilla routes only
+// kinds 4 and 8 here, to a checklist query AP never writes, and takes every other
+// kind unconditionally; the widened branch below sends all 26 through, so the city
+// holds one of each unlocked machine instead of the whole roster. A kind the vanilla
+// per-kind spawn table already rules out never reaches the call.
+int GateMachines_CheckFreeRunKindUnlocked(MachineKind kind)
 {
     if (kind < 0 || kind >= MachineKind_Num())
         return 0;
@@ -420,8 +420,11 @@ int GateMachines_CheckTitleDemoMachineUnlocked(s8 machine_class, s8 machine_id)
 
 void GateMachines_OnBoot()
 {
-    // Free Run's picker asks the checklist whether the legendaries are unlocked.
-    CODEPATCH_REPLACECALL(0x801de528, GateMachines_CheckFreeRunLegendaryUnlocked);
+    // Free Run's picker asks the checklist whether the legendaries are unlocked. Widening
+    // the `beq` that guards that call into an unconditional branch puts every kind through
+    // it, so the mask decides Free Run's city roster the way it decides the field's.
+    CODEPATCH_REPLACECALL(0x801de528, GateMachines_CheckFreeRunKindUnlocked);
+    CODEPATCH_REPLACEINSTRUCTION(0x801de518, 0x4800000c); // b 0x801de524
 
     CODEPATCH_REPLACEFUNC(AirRide_CheckCharacterAvailable, GateMachines_CheckAirRideCharacterAvailable);
     CODEPATCH_REPLACEFUNC(TitleScreen_CheckMachineUnlocked, GateMachines_CheckTitleDemoMachineUnlocked);
