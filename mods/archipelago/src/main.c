@@ -10,6 +10,7 @@
 #include "stadium.h"
 
 #include "main.h"
+#include "version.h"
 #include "gate_machines.h"
 #include "deathlink.h"
 #include "city_trial_event.h"
@@ -89,8 +90,8 @@ int ap_regrant_quiet = 0;
 ModDesc mod_desc = {
     .name = "KARchipelago",
     .author = "DeDeDK",
-    .version.major = 1,
-    .version.minor = 0,
+    .version.major = ARCHIPELAGO_API_MAJOR,
+    .version.minor = ARCHIPELAGO_API_MINOR,
     .save_size = sizeof(struct APSave),
     .save_ptr = 0,                              // Updated by hoshi at runtime, read-only
     .option_desc = &ModSettings,
@@ -115,6 +116,8 @@ ModDesc mod_desc = {
 // persist for the whole runtime; anywhere else they last only the current scene.
 void OnBoot()
 {
+    OSReport("[Main] KARchipelago %s\n", KARCHIPELAGO_VERSION);
+
     ap_data = HSD_MemAlloc(sizeof(APData));
     memset(ap_data, 0, sizeof(APData));
     OSReport("[Main] APData at 0x%08x (%d bytes)\n", (uint)ap_data, sizeof(APData));

@@ -5,14 +5,17 @@
 #include "hsd.h"
 #include "obj.h"
 #include "menu.h"
+#include "text.h"
 #include "rider.h"
 #include "machine.h"
 #include "code_patch/code_patch.h"
 #include "hoshi/mod.h"
 #include "hoshi/func.h"
+#include "hoshi/screen_cam.h"
 
 #include "main.h"
 #include "main_menu.h"
+#include "version.h"
 #include "gate_ap_star.h"
 
 static HSD_Archive *menu_archive = 0;
@@ -20,6 +23,7 @@ static void (*title_exit_vanilla)(void *data) = 0;
 static void (*title_think_vanilla)(void) = 0;
 static float demo_idle_floor = 0.0f;
 static int demo_idle_floor_saved = 0;
+static Text *version_text = 0;
 
 // The demo ride, as a star-class slot. Resolves to the Archipelago Star once
 // custom_machines has registered it, which is the point: the title screen shows the
@@ -106,6 +110,42 @@ static MachineAudioParams *MainMenu_GetDemoAudioParams(void)
     return &(*stc_machineAudioParams)->params[0][demo_star_slot];
 }
 
+// Bottom-right version stamp on the title screen. Created from the title's think and destroyed
+// from its cb_Exit, so it lives exactly as long as the scene does - a Text is not reliably
+// reclaimed by scene teardown, and one left behind draws over whatever comes next.
+#define VERSION_CANVAS_W 640.0f
+#define VERSION_CANVAS_H 480.0f
+#define VERSION_MARGIN   12.0f
+#define VERSION_SCALE    0.30f
+#define VERSION_PAD      12.0f
+
+static void MainMenu_CreateVersionText(void)
+{
+    Text *t = Hoshi_CreateScreenText();
+
+    if (t == 0)
+        return;
+
+    t->kerning = 1;
+    t->viewport_scale = (Vec2){VERSION_SCALE, VERSION_SCALE};
+    // Both are captured into the subtext at Text_AddSubtext time, so they precede it.
+    t->color = (GXColor){255, 255, 255, 255};
+    t->viewport_color = (GXColor){0, 0, 0, 100};
+
+    Text_AddSubtext(t, VERSION_PAD, 0, "v" KARCHIPELAGO_VERSION);
+
+    // Measured in pre-viewport-scale units, and excluding the subtext's own POS offset.
+    float w = 0.0f, h = 0.0f;
+    Text_GetWidthAndHeight(t, 0, &w, &h);
+
+    t->aspect = (Vec2){w + 2.0f * VERSION_PAD, h};
+    t->trans = (Vec3){VERSION_CANVAS_W - VERSION_MARGIN - t->aspect.X * VERSION_SCALE,
+                      VERSION_CANVAS_H - VERSION_MARGIN - t->aspect.Y * VERSION_SCALE,
+                      0};
+
+    version_text = t;
+}
+
 // Title minor cb_ThinkPreGObjProc, wrapped around the vanilla one. vcLoadCommon runs partway
 // through the title cb_Load, so the record is only guaranteed resident once the scene is
 // running; the demo machine existing at all proves it is.
@@ -123,6 +163,20 @@ static void MainMenu_TitleThink(void)
         }
     }
 
+    // The boot cinematic runs inside this same minor, with the title foreground scene absent -
+    // its gobj is what separates the title proper from the cinematic. hoshi rebuilds the screen
+    // canvas on scene change, and Text_CreateText faults on an empty canvas list.
+    if (Gm_GetMenuData()->ScMenTitleFg_gobj != 0)
+    {
+        if (version_text == 0 && *stc_textcanvas_first != 0)
+            MainMenu_CreateVersionText();
+    }
+    else if (version_text != 0)
+    {
+        Text_Destroy(version_text);
+        version_text = 0;
+    }
+
     title_think_vanilla();
 }
 
@@ -135,6 +189,12 @@ static void MainMenu_TitleExit(void *data)
 {
     GOBJ *gobj = MainMenu_GetMachines();
     MachineAudioParams *params = MainMenu_GetDemoAudioParams();
+
+    if (version_text != 0)
+    {
+        Text_Destroy(version_text);
+        version_text = 0;
+    }
 
     if (demo_idle_floor_saved && params != 0)
     {
