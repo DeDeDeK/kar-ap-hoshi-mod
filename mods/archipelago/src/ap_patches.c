@@ -17,24 +17,43 @@
 #include "ap_item_handler.h"
 #include "spawn_rate.h"
 #include "ap_patches.h"
+#include "settings_menu.h"
 
-// Percent of the city's box-category spawn ticks that come up as an AP Box. Well under
-// the 14-in-71 share red holds in the city's own chance table, because the tick a box
-// rolls on is not the throttled quantity: the spawner's item cap is checked ahead of
-// the roll, so a full field kills a tick before it ever reaches here, and a field that
-// gating has emptied lets every one of them through.
-#define AP_BOX_PERCENT 6
-
-// Frames an AP Box roll waits after a winning one, divided by the spawn-rate scale so
-// the Spawn Rate Up item still moves the cadence. This is the ceiling the percentage on
-// its own cannot give: City Trial ticks at 20-50 frames, one in five of them a box, so
-// an unthrottled round offers roughly 125 box ticks and the percentage alone would pay
-// out against however many of those the field's cap happened to leave live.
+// The two levers of the AP Box rate, one row per APBOXRATE_ setting.
 //
-// The clock is grBoxGeneInfo.match_frames_left, which the spawner rebuilds from the
-// round timer every frame - so nothing has to be counted down, and a paused or ended
-// round stops the interval on its own.
-#define AP_BOX_MIN_INTERVAL (40 * 60)
+// percent is the share of the city's box-category spawn ticks that come up as an AP
+// Box. It cannot stand alone, because the tick a box rolls on is not the throttled
+// quantity: the spawner's item cap is checked ahead of the roll, so a full field kills
+// a tick before it ever reaches here, and a field that gating has emptied lets every
+// one of them through. Left to itself the category would pay out most when the seed is
+// most locked down.
+//
+// interval is the frames a roll waits after a winning one, and is what holds the rate
+// steady across that. A five-minute round offers roughly 125 box ticks unthrottled, so
+// each row's floor is set to 300 s / (1.25 * percent) - the two limits bind at the same
+// number of boxes, and a gated round pays out like an ungated one. Boxes per round:
+// 3.75 / 7.5 / 15 / 25, at 1.55 patches each.
+//
+// The floor is divided by the spawn-rate scale at use, so the Spawn Rate Up item still
+// moves the cadence. Its clock is grBoxGeneInfo.match_frames_left, which the spawner
+// rebuilds from the round timer every frame - nothing has to be counted down, and a
+// paused or ended round stops the interval on its own.
+static const struct
+{
+    int percent;
+    int interval;
+} ap_box_rate[APBOXRATE_NUM] = {
+    [APBOXRATE_RARE]   = {  3, 80 * 60 },
+    [APBOXRATE_LOW]    = {  6, 40 * 60 },
+    [APBOXRATE_MEDIUM] = { 12, 20 * 60 },
+    [APBOXRATE_HIGH]   = { 20, 12 * 60 },
+};
+
+static int BoxRate(void)
+{
+    int rate = ap_menu_settings.ap_box_rate;
+    return (rate < 0 || rate >= APBOXRATE_NUM) ? APBOXRATE_LOW : rate;
+}
 
 // Patches one AP Box scatters, capping the 1 / 2 / 4 the vanilla size roll gives, so a
 // single large box cannot hand over a run of checks.
@@ -168,10 +187,11 @@ static int DetermineBox(int *box_color, int *box_size)
     int now = info != NULL ? info->match_frames_left : 0;
     if (now > box_gate_frames)
         return kind;
-    if (HSD_Randi(100) >= AP_BOX_PERCENT)
+    int rate = BoxRate();
+    if (HSD_Randi(100) >= ap_box_rate[rate].percent)
         return kind;
 
-    box_gate_frames = now - (int)((float)AP_BOX_MIN_INTERVAL / SpawnRate_GetScale());
+    box_gate_frames = now - (int)((float)ap_box_rate[rate].interval / SpawnRate_GetScale());
 
     // No gate ever sees the AP box, so it still lands on the tick where box
     // gating has left no vanilla color eligible - carrying its own color and size.
@@ -466,9 +486,10 @@ void ApPatches_On3DLoadEnd(void)
     }
 
     round_armed = 1;
+    int rate = BoxRate();
     OSReport("[APPatches] Armed with %d patch(es) left, %d%% of box spawns, %d frame floor\n",
-             ApPatches_Remaining(), AP_BOX_PERCENT,
-             (int)((float)AP_BOX_MIN_INTERVAL / SpawnRate_GetScale()));
+             ApPatches_Remaining(), ap_box_rate[rate].percent,
+             (int)((float)ap_box_rate[rate].interval / SpawnRate_GetScale()));
 }
 
 void ApPatches_On3DExit(void)

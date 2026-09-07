@@ -6,6 +6,16 @@
 #include "main.h"
 #include "ap_announce.h"
 
+// How often an AP Box comes up as an outcome of the City Trial box roll.
+typedef enum APBoxRate
+{
+    APBOXRATE_RARE,
+    APBOXRATE_LOW,
+    APBOXRATE_MEDIUM,
+    APBOXRATE_HIGH,
+    APBOXRATE_NUM,
+} APBoxRate;
+
 // Menu toggle state, bound to the Settings menu via OptionDesc. Seeded from
 // APSlotOptions on first connect, then owned by the player.
 typedef struct APMenuSettings
@@ -22,6 +32,7 @@ typedef struct APMenuSettings
     int drop_ability_enabled;
     int air_quick_spin_enabled;
     int onfoot_zoom_enabled;
+    int ap_box_rate;
     int text_messages[APTEXT_KIND_NUM];
     int local_messages[APLOCAL_NUM];
 } APMenuSettings;

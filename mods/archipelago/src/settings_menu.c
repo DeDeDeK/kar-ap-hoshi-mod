@@ -13,6 +13,7 @@ APMenuSettings ap_menu_settings = {
     .ar_permanent_patches_enabled         = 1,
     .energylink_autocharge_rate           = 1,
     .ct_random_start_machine              = 1,
+    .ap_box_rate                          = APBOXRATE_LOW,
     .text_messages = {
         [APTEXT_KIND_CHECK]  = 1,
         [APTEXT_KIND_ITEM]   = 1,
@@ -31,6 +32,7 @@ APMenuSettings ap_menu_settings = {
 
 static const char *stc_off_on[] = {"Off", "On"};
 static const char *stc_slow_med_fast[] = {"Slow", "Medium", "Fast"};
+static const char *stc_ap_box_rate[] = {"Rare", "Low", "Med", "High"};
 
 void SyncMenuStateToAPData(void)
 {
@@ -59,6 +61,7 @@ static void OnToggleRandomStartMachine(int val) { OSReport("[Settings] CT Random
 static void OnToggleDropAbility(int val)         { OSReport("[Settings] Drop Ability toggled %s\n", stc_off_on[val]); }
 static void OnToggleAirQuickSpin(int val)        { OSReport("[Settings] Air Quick Spin toggled %s\n", stc_off_on[val]); }
 static void OnToggleOnFootZoom(int val)          { OSReport("[Settings] On-Foot Zoom toggled %s\n", stc_off_on[val]); }
+static void OnChangeApBoxRate(int val)          { OSReport("[Settings] AP Box rate set to %s\n", stc_ap_box_rate[val]); }
 static void OnToggleCheckMessages(int val)      { OSReport("[Settings] Check messages toggled %s\n", stc_off_on[val]); SyncMenuStateToAPData(); }
 static void OnToggleItemMessages(int val)       { OSReport("[Settings] Item messages toggled %s\n", stc_off_on[val]); SyncMenuStateToAPData(); }
 static void OnToggleHintMessages(int val)       { OSReport("[Settings] Hint messages toggled %s\n", stc_off_on[val]); SyncMenuStateToAPData(); }
@@ -259,7 +262,7 @@ OptionDesc ModSettings = {
     .description = "Interface with mod settings here",
     .kind = OPTKIND_MENU,
     .menu_ptr = &(MenuDesc){
-        .option_num = 9,
+        .option_num = 10,
         .options = {
             &(OptionDesc){
                 .name = "Death Link",
@@ -361,6 +364,20 @@ OptionDesc ModSettings = {
                     "On",
                 },
                 .on_change = OnToggleRandomStartMachine,
+            },
+            &(OptionDesc){
+                .name = "AP Box Rate",
+                .description = "How often AP Boxes fall in City Trial",
+                .kind = OPTKIND_VALUE,
+                .val = &ap_menu_settings.ap_box_rate,
+                .value_num = APBOXRATE_NUM,
+                .value_names = (char *[]){
+                    "Rare",
+                    "Low",
+                    "Med",
+                    "High",
+                },
+                .on_change = OnChangeApBoxRate,
             },
             &(OptionDesc){
                 .name = "Drop Ability",
