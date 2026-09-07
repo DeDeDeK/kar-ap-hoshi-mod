@@ -74,6 +74,7 @@ static int anchors_valid;
 static struct
 {
     GOBJ *icon[APSTARPIECE_NUM];
+    u8 piece[APSTARPIECE_NUM]; // sphere each occupied slot is showing
     u8 count;
     u8 shown_mask;
 } piece_hud[5];
@@ -204,7 +205,31 @@ static void ShowPieceIcon(int ply, int piece)
     JObj_SetMtxDirtySub(j);
 
     piece_hud[ply].icon[slot] = g;
+    piece_hud[ply].piece[slot] = (u8)piece;
     piece_hud[ply].count = (u8)(slot + 1);
+}
+
+// Take one icon off the row and close the gap behind it, so the icons that
+// outlive a dropped sphere keep the left-packed order they were collected in.
+static void RemovePieceIcon(int ply, int slot)
+{
+    if (piece_hud[ply].icon[slot] != NULL)
+        GObj_Destroy(piece_hud[ply].icon[slot]);
+
+    for (int i = slot; i + 1 < piece_hud[ply].count; i++)
+    {
+        GOBJ *g = piece_hud[ply].icon[i + 1];
+        piece_hud[ply].icon[i] = g;
+        piece_hud[ply].piece[i] = piece_hud[ply].piece[i + 1];
+        if (g == NULL)
+            continue;
+
+        JOBJ *j = g->hsd_object;
+        j->trans = anchor_pos[i];
+        JObj_SetMtxDirtySub(j);
+    }
+    piece_hud[ply].count--;
+    piece_hud[ply].icon[piece_hud[ply].count] = NULL;
 }
 
 static void ClearPieceIcons(int ply)
@@ -237,6 +262,16 @@ static void UpdatePieceHud(int ply)
     {
         piece_hud[ply].shown_mask = mask;
         return;
+    }
+    // A dropped sphere clears its bit, so the diff has to run both ways: an icon
+    // left standing for a sphere the player no longer holds would be shown a
+    // second time when they collect that color again.
+    for (int s = 0; s < piece_hud[ply].count;)
+    {
+        if (mask & (1 << piece_hud[ply].piece[s]))
+            s++;
+        else
+            RemovePieceIcon(ply, s);
     }
     for (int p = 0; p < APSTARPIECE_NUM; p++)
     {

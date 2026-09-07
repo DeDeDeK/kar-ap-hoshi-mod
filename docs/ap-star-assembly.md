@@ -289,6 +289,10 @@ collecting player, relinked to `GAMEPLINK_PAUSEHUD` with `GObj_SetPLink`, given 
 data of kind `0x3b`, and positioned at its anchor. The vanilla tracker diffs the piece
 mask against a cached copy once a frame rather than reacting to the pickup; this does the
 same, so no GObj is created from inside the collision call that collected the sphere.
+The diff runs both ways: a dropped sphere clears its bit, its icon is destroyed and the
+icons behind it slide left onto the freed anchors, so the row never shows a color the
+player no longer holds and collecting that color again cannot put a second icon of it on
+the row.
 Icons are destroyed on assembly, which is also when the vanilla mount clears its own masks
 and the vanilla icons vanish.
 
