@@ -128,12 +128,18 @@ itself, as `APStarPiece` alongside the 820-825 item IDs in `archipelago_api.h`, 
 public header stands on its own; the two orders are a contract, since a sphere unlock item
 is applied by index.
 
+The mask it pushes is 0 whenever Archipelago's Red Box unlock is missing, whatever the
+sphere bits say. Spheres arrive in the legendary-piece carrier, which is a red box that
+hardcodes its color instead of going through the box color picker, so the sphere gate is
+the only place box gating can reach them.
+
 It **pushes** the mask into the gate on every write rather than letting `ap_star` read it
 back. `ap_star` sorts before `archipelago` in the FST, so by the time `archipelago`'s own
 load-start callback runs, `ap_star` has already armed the round. Every writer of the mask
 therefore ends in `GateApStar_PushMask()`: the boot restore in `OnSaveLoaded`, the
 per-sphere unlock, and `Unlock_SetMask`, which is the single choke point the client and the
-ungated pre-fill both go through.
+ungated pre-fill both go through. The box mask feeds it too, so its writers push as well -
+`GateBoxes_UnlockBox` on Red and `Unlock_SetMask` on `AP_UNLOCK_BOX`.
 
 Archipelago also chooses the star as the title screen's idle demo machine, in `main_menu.c`,
 through `GateApStar_MachineKind()`; it falls back to a vanilla star when that answers -1.

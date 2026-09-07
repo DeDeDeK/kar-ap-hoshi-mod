@@ -6,6 +6,7 @@
 #include "gate_ap_star.h"
 #include "ap_item_handler.h"
 #include "ap_check_detect.h"
+#include "gate_boxes.h"
 
 // APStarPiece and ap_star's own APStarPieceKind number the six spheres the same
 // way, which is what lets an index cross the boundary unchanged.
@@ -41,7 +42,11 @@ void GateApStar_PushMask(void)
     // earlier than hoshi hands us a save. OnSaveLoaded pushes the real mask.
     if (ap_star_api == NULL || ap_save == NULL)
         return;
-    ap_star_api->SetPieceMask(ap_save->ap_star_piece_unlocked_mask);
+
+    // Spheres ride the same red carrier box the vanilla pieces do, so a locked Red
+    // arms none of them.
+    u8 mask = GateBoxes_IsUnlocked(BOXKIND_RED) ? ap_save->ap_star_piece_unlocked_mask : 0;
+    ap_star_api->SetPieceMask(mask);
 }
 
 int GateApStar_UnlockPiece(int piece)

@@ -55,8 +55,9 @@ void Unlock_SetMask(APUnlockCategory cat, u32 mask)
     }
 
     // ap_star reads its sphere gate at 3D load start, and it runs before this mod
-    // does, so the mask is pushed on every write rather than read back later.
-    if (cat == AP_UNLOCK_AP_STAR_PIECE)
+    // does, so the mask is pushed on every write rather than read back later. The box
+    // mask feeds it too - the spheres ride a red carrier box.
+    if (cat == AP_UNLOCK_AP_STAR_PIECE || cat == AP_UNLOCK_BOX)
         GateApStar_PushMask();
 }
 

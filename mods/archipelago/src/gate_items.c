@@ -4,6 +4,7 @@
 
 #include "main.h"
 #include "gate_items.h"
+#include "gate_boxes.h"
 #include "textbox_api.h"
 #include "inline.h"
 #include "ap_announce.h"
@@ -229,7 +230,8 @@ void GateItems_FilterEventDropTables()
 // One bit per unlock index whose locked-spawn skip has been reported this round.
 static u32 stc_locked_reported;
 
-// Disable legendary piece spawns when all pieces of a type are locked.
+// Disable legendary piece spawns when all pieces of a type are locked, or when the red
+// carrier box they ride has not been unlocked.
 static void GateItems_FilterLegendaryPieces()
 {
     stc_locked_reported = 0;
@@ -237,6 +239,16 @@ static void GateItems_FilterLegendaryPieces()
     LegendaryPieceData *lpd = *stc_legendary_piece_data;
     if (!lpd)
         return;
+
+    // The carrier hardcodes red and never reaches the box color picker, so box gating
+    // has to be applied here or a locked Red still delivers pieces.
+    if (!GateBoxes_IsUnlocked(BOXKIND_RED))
+    {
+        lpd->machine[0].is_enabled = 0;
+        lpd->machine[1].is_enabled = 0;
+        OSReport("[GateItems] Legendary pieces disabled (Red Box locked)\n");
+        return;
+    }
 
     u32 mask = ap_save->item_unlocked_mask;
 

@@ -7,6 +7,7 @@
 
 #include "main.h"
 #include "gate_boxes.h"
+#include "gate_ap_star.h"
 #include "inline.h"
 #include "textbox_api.h"
 #include "ap_announce.h"
@@ -71,6 +72,15 @@ int GateBoxes_DetermineBoxType(int *box_color, int *box_size)
     return *box_color;
 }
 
+// The legendary-piece carrier hardcodes its color instead of going through the picker,
+// so the piece gates ask this rather than reading the mask themselves.
+int GateBoxes_IsUnlocked(BoxKind kind)
+{
+    if (ap_save == NULL || kind < 0 || kind >= BOXKIND_NUM)
+        return 0;
+    return (ap_save->box_unlocked_mask & (1 << kind)) != 0;
+}
+
 void GateBoxes_OnBoot()
 {
     CODEPATCH_REPLACEFUNC(GrBoxGeneratorDetermine, GateBoxes_DetermineBoxType);
@@ -86,5 +96,9 @@ int GateBoxes_UnlockBox(BoxKind kind)
     OSReport("[GateBoxes] Box %d (%s) unlocked (mask = %s)\n",
              kind, BoxKind_Names[kind], MaskBits(ap_save->box_unlocked_mask, 8));
     APAnnounce_Grant("Unlocked Box: ", BoxKind_Names[kind], tb_api->BoxColors[kind], NULL);
+
+    // Red carries the sphere deliveries, whose gate ap_star reads at 3D load start.
+    if (kind == BOXKIND_RED)
+        GateApStar_PushMask();
     return 1;
 }
